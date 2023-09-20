@@ -1,0 +1,134 @@
+
+import "hashes/sha256/512bitPadded.zok" as sha256;
+import "hashes/sha256/512bitPacked" as sha256packed;
+from "ecc/babyjubjubParams" import BabyJubJubParams;
+import "signatures/verifyEddsa.zok" as verifyEddsa;
+import "ecc/babyjubjubParams.zok" as context;
+import "utils/casts/u32_to_field" as u32_from_bits;
+import "utils/casts/field_to_u32" as field_to_u32;
+import "utils/casts/u32_to_field" as u32_to_field;
+
+
+struct SignedValue {
+    field[2] R;
+    field S;
+}
+
+struct PKey {
+    field[2] value;
+}
+
+
+struct Supplier {
+    u32[16] materialId;
+    u32[16] supplierID;
+}
+
+struct SupplierAuditor{
+    u32[16] supplierID;
+    field[2] value;
+}
+
+
+
+def hashSupplierAndAuditors(Supplier suppliers,PKey auditorsSuppliers) -> u32[16]{
+    u32[16] extendedKey = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,field_to_u32(auditorsSuppliers.value[0]),field_to_u32(auditorsSuppliers.value[1])];
+    u32[8] hashSuppliers = sha256(suppliers.supplierID[0..8], suppliers.supplierID[8..16]);
+    log("unhashed commitment of : {}", (suppliers.supplierID));
+
+    log("hashed commitment of : {}", (hashSuppliers));
+    u32[8] hashAuditors = sha256(extendedKey[0..8], extendedKey[8..16]);
+    return [...hashSuppliers, ...hashAuditors];
+}
+
+
+// def hashAll(Supplier suppliers, PKey auditorsSuppliers) -> u32[8] {
+//     // set arraySize to the total size of your data
+//     u32[48] allData = [
+//         ...suppliers.supplierID[0..16],
+//         ...[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+//            field_to_u32(auditorsSuppliers.value[0]),
+//            field_to_u32(auditorsSuppliers.value[1])
+//         ],
+//         ...suppliers.supplierID
+//     ];
+
+//     u32[8] result = sha256(allData[0..16], allData[16..32], allData[32..48]);
+
+//     return result;
+// }
+// def testhashSupplierAndAuditors(Supplier suppliers,PKey auditorsSuppliers) -> u32[8]{
+//     u32[32] hashData = [suppliers.supplierID[0..16],...[0,0,0,0,0,0,0,0,0,0,0,0,0,0,field_to_u32(auditorsSuppliers.value[0]),field_to_u32(auditorsSuppliers.value[1])]];
+//     return sha256(hashData[0..16], hashData[16..32]);
+// }
+def testHasher(Supplier suppliers,PKey auditorsSuppliers) -> field[2]{
+      field[2] h = sha256packed([0,auditorsSuppliers.value[0], auditorsSuppliers.value[1], u32_to_field(suppliers.supplierID[15])]);
+      return h;
+}
+def generateSupplierCommitments<N>(
+    Supplier[N] suppliers,
+    PKey[N] auditorsSuppliers
+    ) ->  u32[N][16] {
+         u32[N][16] mut result = [[0; 16]; N];
+        for u32 i in 0..N {
+            result[i] = hashSupplierAndAuditors(suppliers[i],auditorsSuppliers[i]);
+        }
+        return result;
+    }
+
+// def testHasher(Supplier suppliers) -> field[2]{
+//       field[2] h = sha256packed([0,0, 0, u32_to_field(suppliers.supplierID[15])]);
+//       return h;
+// }
+// def generateSupplierCommitments<N>(
+//     Supplier[N] suppliers,
+//     PKey[N] auditorsSuppliers
+//     ) -> field[N][2] {
+//         field[N][2] mut result = [[0; 2]; N];
+//         for u32 i in 0..N {
+//             result[i] = testHasher(suppliers[i],auditorsSuppliers[i]);
+//         }
+//         return result;
+//     }
+
+
+
+def main(
+    private Supplier[3] suppliers,
+    PKey[3] auditorsSupplierIdentity
+    ) ->  u32[3][16] { 
+
+
+
+
+    // u32[8] supplierCommitments = hashAllSuppliersAndAuditors(suppliers,auditorsSupplierIdentity);
+    //log("value: {}", u32_from_bits(unsigned_input.value[15]));
+
+    u32[3][16] supplierCommitments = generateSupplierCommitments(suppliers,auditorsSupplierIdentity);
+    log("unhashed  of supplier : {}", ((suppliers[0])));
+    log("unhashed  of auditors: {}", auditorsSupplierIdentity[0]);
+    
+    log("unhashed commitment of : {}", (supplierCommitments));
+    
+    // log("hashes of  commitments: {}", u32_from_bits(supplierCommitments[0][0]));
+    // log("hashes of  commitments: {}", u32_from_bits(supplierCommitments[0][1]));
+    // log("hashes of  commitments: {}", u32_from_bits(supplierCommitments[0][2]));
+    // log("hashes of  commitments: {}", u32_from_bits(supplierCommitments[0][3]));
+    // log("hashes of  commitments: {}", u32_from_bits(supplierCommitments[0][4]));
+    // log("hashes of  commitments: {}", u32_from_bits(supplierCommitments[0][5]));
+    // log("hashes of  commitments: {}", u32_from_bits(supplierCommitments[0][6]));
+    // log("hashes of  commitments: {}", u32_from_bits(supplierCommitments[0][7]));
+    // log("hashes of  commitments: {}", u32_from_bits(supplierCommitments[0][8]));
+    // log("hashes of  commitments: {}", u32_from_bits(supplierCommitments[0][9]));
+    // log("hashes of  commitments: {}", u32_from_bits(supplierCommitments[0][10]));
+    // log("hashes of  commitments: {}", u32_from_bits(supplierCommitments[0][11]));
+    // log("hashes of  commitments: {}", u32_from_bits(supplierCommitments[0][12]));
+    // log("hashes of  commitments: {}", u32_from_bits(supplierCommitments[0][13]));
+    // log("hashes of  commitments: {}", u32_from_bits(supplierCommitments[0][14]));
+    // log("hashes of  commitments: {}", u32_from_bits(supplierCommitments[0][15]));
+
+    // log("hashes of  FIRSt commitments: {}", (firstCommitment));
+
+
+    return supplierCommitments;
+}

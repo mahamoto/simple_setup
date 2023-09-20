@@ -1,0 +1,424 @@
+
+
+import "hashes/sha256/512bitPadded.zok" as sha256;
+import "hashes/sha256/512bitPacked" as sha256packed;
+import "hashes/poseidon/poseidon" as hash;
+
+from "ecc/babyjubjubParams" import BabyJubJubParams;
+import "signatures/verifyEddsa.zok" as verifyEddsa;
+import "ecc/babyjubjubParams.zok" as context;
+import "utils/casts/u32_to_field" as u32_from_bits;
+import "utils/casts/field_to_u32" as field_to_u32;
+import "utils/casts/u32_to_field" as u32_to_field;
+struct SignedValue {
+    field[2] R;
+    field S;
+}
+
+struct PKey {
+    field[2] value;
+}
+
+struct RawCarbonFootprint {
+    u32 value;
+    u32 materialId;
+}
+
+struct RawRecipe{
+    u32[16] weights;
+    u32[16] materialIds;
+}
+struct Supplier {
+    u32[16] materialId;
+    u32[16] supplierID;
+}
+
+// struct SupplierAuditor{
+//     u32[16] supplierID;
+//     field[2] value;
+// }
+struct VerifiedTag{
+    u32 materialId;
+    field verifiedTag;
+}
+
+
+def hashCarbonFootprint(RawCarbonFootprint rawValue) -> field {
+    field hashCFValues = hash(rawValue.value);
+    field hashMaterialIds = hash(rawValue.materialId);
+    return hashCFValues+hashMaterialIds;
+}
+
+def hashSupplierAndAuditors(Supplier suppliers,PKey auditorsSuppliers) -> field{
+    field hashSuppliers = hash(suppliers.supplierID);
+    field hashAuditors = hash(auditorsSuppliers.value);
+    return [...hashSuppliers, ...hashAuditors];
+}
+
+def testHasher(Supplier suppliers,PKey auditorsSuppliers) -> field[2]{
+      field[2] h = sha256packed([0,auditorsSuppliers.value[0], auditorsSuppliers.value[1], u32_to_field(suppliers.supplierID[15])]);
+      return h;
+}
+def generateSupplierCommitments<N>(
+    Supplier[N] suppliers,
+    PKey[N] auditorsSuppliers
+    ) -> field {
+        u32 mut toHash=0;
+        for u32 i in 0..N {
+            toHash = toHash + suppliers[i].supplierID[15] + field_to_u32(auditorsSuppliers[i].value[0])+ field_to_u32(auditorsSuppliers[i].value[1]);
+        }
+        field result = hash(u32_to_field(toHash));
+        log("toHash: {}", u32_from_bits(toHash));
+        return result;
+    }
+
+// def hashAllSuppliersAndAuditors<N>(
+//     Supplier[N] suppliers,
+//     PKey[N] auditorsSuppliers
+// ) -> u32[8] {
+//     u32[8] mut concatenatedHash = [0; 8];
+//     for u32 i in 0..N {
+//         u32[16] currentHash = hashSupplierAndAuditors(suppliers[i], auditorsSuppliers[i]);
+//         u32[8] tempHash = sha256(concatenatedHash[0..8], concatenatedHash[8..16]);
+//         concatenatedHash = sha256(tempHash, currentHash[0..8]);
+//     }
+//     return concatenatedHash;
+// }
+// def hashRecipe(RawRecipe rawValue) -> u32[16] {
+
+//     u32[32][8] mut helper = [[0;8];32];
+//     for u32 i in 0..16 {
+//         helper[i] = sha256(rawValue.weights[(i*16)..(i*16+8)], rawValue.weights[(i*16+8)..(i*16+16)]);
+//         helper[16+i] = sha256(rawValue.materialIds[(i*16)..(i*16+8)], rawValue.materialIds[(i*16+8)..(i*16+16)]);
+//     }
+//     for u32 i in 0..8 {
+//         helper[i] = sha256(helper[i*2], helper[i*2+1]);
+//         helper[16+i] = sha256(helper[i*2+16], helper[i*2+17]);
+//     }
+//     for u32 i in 0..4 {
+//         helper[i] = sha256(helper[i*2], helper[i*2+1]);
+//         helper[16+i] = sha256(helper[i*2+16], helper[i*2+17]);
+//     }
+//     for u32 i in 0..2 {
+//         helper[i] = sha256(helper[i*2], helper[i*2+1]);
+//         helper[16+i] = sha256(helper[i*2+16], helper[i*2+17]);
+//     }
+
+//     return [
+//         ...sha256(helper[0], helper[1]),
+//         ...sha256(helper[16], helper[17])
+//     ];
+// }
+
+def hashRecipe(RawRecipe rawValue) -> field[2] {
+    return [
+        ...hash(rawValue.weights), 
+        ...sha256(rawValue.materialIds)
+    ];
+}
+
+
+
+
+
+def hashSupplier(Supplier rawSupplier) -> field {
+        u32[8] hashMaterialId = hash(rawSupplier.materialId);
+        u32[8] hashSupplierId = hash(rawSupplier.supplierID);
+       return [...hashMaterialId, ...hashSupplierId];
+
+}
+
+
+def hashAllSuppliers<N>(
+    Supplier[N] rawInputs
+    ) -> u32[N][16] {
+        u32[N][16] mut result = [[0; 16]; N];
+        for u32 i in 0..N {
+            result[i] = hashSupplier(rawInputs[i]);
+        }
+        return result;
+    }
+def checkSignature(BabyJubJubParams context, SignedValue sig, u32[16] hash, PKey key) -> bool {
+
+    return verifyEddsa(sig.R, sig.S, key.value, hash[0..8], hash[8..16], context);
+
+}
+
+def checkAllSignatureCarbonFootprints<N>(
+    BabyJubJubParams context,
+    SignedValue[N] signedCarbonFootprints,
+    u32[N][16] hashedCarbonFootprints,
+    PKey[N] auditors,
+    VerifiedTag[N] verifiedTags,
+    RawCarbonFootprint[N] rawCarbonFootprints
+    ) -> u32 {
+        u32 mut percentage = 0;
+        u32 percentage_steps = 100/N;
+        bool mut isSignedCorrect = false;
+        for u32 i in 0..N {
+
+            for u32 y in 0..N {
+            
+            bool materialIdMatchedAndToBeVerified = rawCarbonFootprints[i].materialId[15] == verifiedTags[y].materialId && verifiedTags[y].verifiedTag == 1 ? true : false;
+
+
+            isSignedCorrect = if materialIdMatchedAndToBeVerified == true {checkSignature(context, signedCarbonFootprints[i], hashedCarbonFootprints[i], auditors[i])} else{false} ;
+
+            percentage = if materialIdMatchedAndToBeVerified == true && isSignedCorrect == true {percentage + percentage_steps} else {percentage};
+            // log("{} valid signature: {}", u32_from_bits(i), isSignedCorrect);
+            }
+        }
+        
+        log("Footprint certified by: {}%",u32_from_bits(percentage));
+
+
+        return percentage;
+    }
+
+def checkAllSignatureSuppliers<N>(
+    BabyJubJubParams context,
+    SignedValue[N] signedCarbonFootprints,
+    u32[N][16] hashedCarbonFootprints,
+    PKey[N] auditors
+    ) -> bool {
+
+        bool mut result = true;
+        
+        for u32 i in 0..N {
+            bool isSignedCorrect = checkSignature(context, signedCarbonFootprints[i], hashedCarbonFootprints[i], auditors[i]) ? true : false;
+            log("{} valid signature: {}", u32_from_bits(i), isSignedCorrect);
+            result = result == isSignedCorrect;
+        }
+
+        return result;
+    }
+
+def hashAllCarbonFootprints<N>(
+    RawCarbonFootprint[N] rawInputs
+    ) -> u32[N][16] {
+        u32[N][16] mut result = [[0; 16]; N];
+        for u32 i in 0..N {
+            result[i] = hashCarbonFootprint(rawInputs[i]);
+        }
+        return result;
+    }
+
+def validateCarbonFootprints<N>(
+    BabyJubJubParams context,
+    RawCarbonFootprint[N] rawValues,
+    SignedValue[N] signedValues,
+    PKey[N] publicKeys,
+    VerifiedTag[N] verifiedTags
+    ) -> u32 {
+    
+    u32[N][16] hashedCarbonFootprints = hashAllCarbonFootprints(rawValues);
+    
+    //check validity of signatures
+    u32 verifiedSignatures = checkAllSignatureCarbonFootprints(
+        context, 
+        signedValues, 
+        hashedCarbonFootprints, 
+        publicKeys,
+        verifiedTags,
+        rawValues
+        );
+
+    return verifiedSignatures;
+    }
+
+def validateRecipe(
+    BabyJubJubParams context,
+    RawRecipe rawRecipe,
+    SignedValue signedRecipe,
+    PKey auditor
+    ) -> bool {
+
+        u32[16] hashedRecipe = hashRecipe(rawRecipe);
+        bool verifiedSignature = checkSignature(context, signedRecipe, hashedRecipe, auditor);
+
+        return verifiedSignature;
+    }
+
+def calculateOutput<K, N>(
+    RawRecipe[K] recipes,
+    RawCarbonFootprint[N] carbonFootprints
+    ) -> u32 {
+
+        u32[K*16] mut weights = [0;K*16];
+
+        for u32 i in 0..K*16 {
+            weights[i] = recipes[i/16].weights[i%16];
+        }
+
+        u32 mut result = 0;
+
+        for u32 i in 0..N {
+            log("{} + {} * {}", u32_from_bits(result), u32_from_bits(weights[i]), u32_from_bits(carbonFootprints[i].value[15]));
+            result = result + weights[i] * carbonFootprints[i].value[15];
+        }
+        return result;
+    }
+def checkMaterialIDSuppliers<N>(RawCarbonFootprint[N] rawValues, Supplier[N] suppliers) -> bool {
+    bool mut result = true;
+    // iterate through each RawCarbonFootprint
+    for u32 i in 0..N {
+        // default to mismatch
+        bool mut match = false;
+        // compare current RawCarbonFootprint with each Supplier
+        for u32 j in 0..N {
+            // set match to true if anything matches
+            match = match || (rawValues[i].materialId[15] == suppliers[j].materialId[15]);
+            
+        }
+        // if no match was found for a RawCarbonFootprint record that in result
+        result = result && match;
+    }
+    // return the result of all operations
+    return result;
+}
+def validateSuppliers<N>(
+    BabyJubJubParams context,
+    RawCarbonFootprint[N] rawValues,
+    Supplier[N] suppliers,
+    SignedValue[N] signedSuppliers,
+    PKey[N] publicKeys
+) -> bool {
+    
+    bool checkedMaterialIDSuppliers = checkMaterialIDSuppliers(rawValues,suppliers);
+
+    // assert that all suppliers have been checked and are correct
+    assert(checkedMaterialIDSuppliers);
+
+    u32[N][16] hashedSuppliers = hashAllSuppliers(suppliers);
+    
+    // check validity of signatures
+    bool verifiedSignatures = checkAllSignatureSuppliers(
+        context, 
+        signedSuppliers, 
+        hashedSuppliers, 
+        publicKeys
+    );
+
+    return checkedMaterialIDSuppliers && verifiedSignatures;
+}
+
+def checkMaterialIds<K, N>(
+    RawRecipe[K] recipes,
+    RawCarbonFootprint[N] carbonFootprints
+    ) -> bool {
+        
+        u32[K*16] mut recipeIds = [0;K*16];
+
+        for u32 i in 0..K*16 {
+            recipeIds[i] = recipes[i/16].materialIds[i%16];
+        }
+
+        bool mut result = true;
+        for u32 i in 0..N {
+
+            result = result == (recipeIds[i] == carbonFootprints[i].materialId[15]);
+        }
+
+        return result;
+
+    }
+
+def validateRecipes<N>(
+    BabyJubJubParams context,
+    RawRecipe[N] rawRecipes,
+    SignedValue[N] signedRecipes,
+    PKey[N] auditors
+    ) -> bool {
+        bool mut result = true;
+        for u32 i in 0..N {
+
+            result = result == validateRecipe(context, rawRecipes[i], signedRecipes[i], auditors[i]);
+        }
+
+        return result;
+    }
+
+
+def createAuditorsOutput<N>(PKey[N]auditorsCarbonFootprints) -> field[N][2] {
+field[2] null = [0,0];
+field[N][2] mut result = [null,null, null];
+  for u32 x in 0..N {
+     result[x] = [auditorsCarbonFootprints[x].value[0],auditorsCarbonFootprints[x].value[1]];
+  }
+  for u32 i in 0..N {
+      for u32 j in (i+1)..N {
+          result[j] = if result[i] == result[j] {null} else {result[j]};
+      }
+  }
+  return result;
+    }
+
+def generateSupplierCommitments<N>(
+    Supplier[N] suppliers
+    ) -> field[2] {
+        field mut toHash=0;
+    
+        for u32 i in 0..N {
+            log("strings to hash {}", suppliers[i].supplierID[15]);
+            toHash = toHash + u32_to_field(suppliers[i].supplierID[15]);
+            log("toHash{}: {}", i, (toHash));
+        }
+        field[2] result = sha256packed([0, 0, 0, (toHash)]);
+        log("toHash: {}", (toHash));
+        return result;
+    }
+def main(
+    private RawRecipe[1] rawRecipes,
+    private SignedValue[1] signedRecipes,
+    PKey[1] auditorsRecipe,
+    private RawCarbonFootprint[3] rawCarbonFootprints, 
+    private SignedValue[3] signedCarbonFootprints, 
+    private PKey[3] auditorsCarbonFootprints,
+    private Supplier[3] suppliers,
+    private SignedValue[3] signedSuppliersList, 
+    private PKey[3] auditorsSupplierIdentity,
+    private VerifiedTag[3] verifiedTags
+    ) -> (u32, u32, field [2], field[3][2]) { 
+
+    //Create context for signature verifications
+	BabyJubJubParams context = context();
+
+
+
+    // log("Validating Recipe", 0);
+    bool validRecipe = validateRecipes(context, rawRecipes, signedRecipes, auditorsRecipe);
+    assert(validRecipe);
+    log("Validation of recipe complete: {}", validRecipe);
+    
+    //check validty of carbon footprints
+    // log("Validating Signatures of Carbon Footprint values", 0);
+    u32 certifiedPCFs = validateCarbonFootprints(context, rawCarbonFootprints, signedCarbonFootprints, auditorsCarbonFootprints,verifiedTags);
+    log("Validation of CF signatures complete: certified percentage is  {}", u32_from_bits(certifiedPCFs));
+    
+    // Check if the suppliers match suppliers in Footprints values
+    bool validSuppliers = validateSuppliers(context, rawCarbonFootprints, suppliers, signedSuppliersList, auditorsSupplierIdentity);
+    assert(validSuppliers);
+    log("Validation of supplier signatures complete: {}", validSuppliers);
+    
+    
+    // Check if the suppliers match suppliers in Footprints values
+    field [3][2] pcfInputsAuditorsSet = createAuditorsOutput(auditorsCarbonFootprints);
+    
+    // Check if the materialIds of the recipe match the materialIds of the Carbon Footprints
+    bool validMaterialIds = checkMaterialIds(rawRecipes, rawCarbonFootprints);
+    assert(validMaterialIds);
+    log("Check of Material IDs complete: {}", validMaterialIds);
+
+    // Calculate the resulting
+    u32 calculationResult = calculateOutput(rawRecipes, rawCarbonFootprints);
+    log("Result of carbon calculation: {}", u32_from_bits(calculationResult));
+
+    field [2] supplierCommitments = generateSupplierCommitments(suppliers);
+    log("Result of supplier Commitments1: {}", supplierCommitments[0]);
+    log("Result of supplier Commitments2: {}", supplierCommitments[1]);
+
+   
+
+
+    return (calculationResult,certifiedPCFs,supplierCommitments, pcfInputsAuditorsSet);
+}

@@ -1,0 +1,301 @@
+{
+  "inputs": [
+    {
+      "name": "rawRecipes",
+      "public": false,
+      "type": "array",
+      "components": {
+        "size": 1,
+        "type": "struct",
+        "components": {
+          "name": "RawRecipe",
+          "generics": [],
+          "members": [
+            {
+              "name": "weights",
+              "type": "array",
+              "components": {
+                "size": 16,
+                "type": "u32"
+              }
+            },
+            {
+              "name": "materialIds",
+              "type": "array",
+              "components": {
+                "size": 16,
+                "type": "u32"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "signedRecipes",
+      "public": false,
+      "type": "array",
+      "components": {
+        "size": 1,
+        "type": "struct",
+        "components": {
+          "name": "SignedValue",
+          "generics": [],
+          "members": [
+            {
+              "name": "R",
+              "type": "array",
+              "components": {
+                "size": 2,
+                "type": "field"
+              }
+            },
+            {
+              "name": "S",
+              "type": "field"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "auditorsRecipe",
+      "public": true,
+      "type": "array",
+      "components": {
+        "size": 1,
+        "type": "struct",
+        "components": {
+          "name": "PKey",
+          "generics": [],
+          "members": [
+            {
+              "name": "value",
+              "type": "array",
+              "components": {
+                "size": 2,
+                "type": "field"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "rawCarbonFootprints",
+      "public": false,
+      "type": "array",
+      "components": {
+        "size": 1,
+        "type": "struct",
+        "components": {
+          "name": "RawCarbonFootprint",
+          "generics": [],
+          "members": [
+            {
+              "name": "value",
+              "type": "array",
+              "components": {
+                "size": 16,
+                "type": "u32"
+              }
+            },
+            {
+              "name": "materialId",
+              "type": "array",
+              "components": {
+                "size": 16,
+                "type": "u32"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "signedCarbonFootprints",
+      "public": false,
+      "type": "array",
+      "components": {
+        "size": 1,
+        "type": "struct",
+        "components": {
+          "name": "SignedValue",
+          "generics": [],
+          "members": [
+            {
+              "name": "R",
+              "type": "array",
+              "components": {
+                "size": 2,
+                "type": "field"
+              }
+            },
+            {
+              "name": "S",
+              "type": "field"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "auditorsCarbonFootprints",
+      "public": false,
+      "type": "array",
+      "components": {
+        "size": 1,
+        "type": "struct",
+        "components": {
+          "name": "PKey",
+          "generics": [],
+          "members": [
+            {
+              "name": "value",
+              "type": "array",
+              "components": {
+                "size": 2,
+                "type": "field"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "suppliers",
+      "public": false,
+      "type": "array",
+      "components": {
+        "size": 1,
+        "type": "struct",
+        "components": {
+          "name": "Supplier",
+          "generics": [],
+          "members": [
+            {
+              "name": "materialId",
+              "type": "array",
+              "components": {
+                "size": 16,
+                "type": "u32"
+              }
+            },
+            {
+              "name": "supplierID",
+              "type": "array",
+              "components": {
+                "size": 16,
+                "type": "u32"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "signedSuppliersList",
+      "public": false,
+      "type": "array",
+      "components": {
+        "size": 1,
+        "type": "struct",
+        "components": {
+          "name": "SignedValue",
+          "generics": [],
+          "members": [
+            {
+              "name": "R",
+              "type": "array",
+              "components": {
+                "size": 2,
+                "type": "field"
+              }
+            },
+            {
+              "name": "S",
+              "type": "field"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "auditorsSupplierIdentity",
+      "public": false,
+      "type": "array",
+      "components": {
+        "size": 1,
+        "type": "struct",
+        "components": {
+          "name": "PKey",
+          "generics": [],
+          "members": [
+            {
+              "name": "value",
+              "type": "array",
+              "components": {
+                "size": 2,
+                "type": "field"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "verifiedTags",
+      "public": false,
+      "type": "array",
+      "components": {
+        "size": 1,
+        "type": "struct",
+        "components": {
+          "name": "VerifiedTag",
+          "generics": [],
+          "members": [
+            {
+              "name": "materialId",
+              "type": "u32"
+            },
+            {
+              "name": "verifiedTag",
+              "type": "field"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "output": {
+    "type": "tuple",
+    "components": {
+      "elements": [
+        {
+          "type": "u32"
+        },
+        {
+          "type": "u32"
+        },
+        {
+          "type": "array",
+          "components": {
+            "size": 2,
+            "type": "field"
+          }
+        },
+        {
+          "type": "array",
+          "components": {
+            "size": 1,
+            "type": "array",
+            "components": {
+              "size": 2,
+              "type": "field"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

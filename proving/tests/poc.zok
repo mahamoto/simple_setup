@@ -1,0 +1,33 @@
+import "hashes/poseidon/poseidon" as hash;
+
+struct PKey {
+    field[2] value;
+}
+
+def main(PKey auditorsRecipe) -> field { 
+
+field[2] result = sha256packed([0,0, auditorsRecipe.value[0], auditorsRecipe.value[1]]);
+
+// field result = hash(auditorsRecipe.value);
+
+// field result2 = hash(auditorsRecipe.value);
+
+// field result3 = hash(auditorsRecipe.value);
+
+// field result4 = hash(auditorsRecipe.value);
+
+// field result5 = hash(auditorsRecipe.value);
+
+// field result6 = hash(auditorsRecipe.value);
+
+// field result7 = hash(auditorsRecipe.value);
+
+// field result8 = hash(auditorsRecipe.value);
+
+// field result9 = hash(auditorsRecipe.value);
+
+// field result10 = hash(auditorsRecipe.value);
+
+return result[0];
+}
+
