@@ -36,7 +36,7 @@ def read_input_file(filepath):
             input_content.get('ProductCarbonFootprints'),
             input_content.get('Recipe'),
             input_content.get('Suppliers'),
-            verified]
+            list(verified)]
         
 def write_output_file(filepath, outputString):
     

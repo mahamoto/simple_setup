@@ -1,0 +1,14 @@
+{
+  "ProductCarbonFootprints": [
+    [1,128]
+  ],
+  "Recipe": [
+    [1, 2]
+  ],
+  "Suppliers": [
+    [1, 5]
+  ],
+  "verified": [
+    true
+  ]
+}
