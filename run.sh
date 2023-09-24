@@ -8,7 +8,7 @@ cd $DIR/audit
 
 source $DIR/venv/bin/activate
 
-python3 attestation.py
+python3 attestation_json.py
 
 
 # Code compiling
@@ -31,7 +31,7 @@ verificationKeySize=$(du -kh $DIR/artifacts/verification.key | cut -f1)
 
 # Witness generation
 START=`date +%s`
-cat ../artifacts/witness-parameters.txt | xargs zokrates compute-witness -i $DIR/artifacts/out -o $DIR/artifacts/witness -a 
+zokrates compute-witness -i $DIR/artifacts/out -o $DIR/artifacts/witness --abi -s $DIR/proving/abi.json --stdin < $DIR/artifacts/witness-parameters.json
 END=`date +%s`
 witnessDur=$(echo "$END - $START" | bc)
 

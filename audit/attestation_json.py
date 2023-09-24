@@ -253,7 +253,7 @@ def createVerifiedTagsOutput(verified):
         _verified = 1 if boolean else 0 
         parsed = {
             "materialId": hex(materialId),
-            "verifiedTag": hex(_verified)
+            "verifiedTag": str(_verified)
         }
         verifiedTags.append(parsed)
         if not _verified:
